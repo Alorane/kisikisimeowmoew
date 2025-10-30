@@ -14,4 +14,6 @@ export interface Repair {
   title: string; // e.g. 'Замена экрана'
   price: number;
   desc: string;
+  waranty: string | null;
+  work_time: string | null;
 }

@@ -19,6 +19,12 @@ This is a Telegram bot for a repair service, refactored to use TypeScript and Su
     ADMIN_IDS=your_telegram_user_id_here # Can be a comma-separated list of IDs
     SUPABASE_URL=your_supabase_project_url_here
     SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+    PGHOST=your_postgres_host
+    PGDATABASE=your_postgres_database
+    PGUSER=your_postgres_user
+    PGPASSWORD=your_postgres_password
+    PGPORT=5432
+    PGOPTIONS=project=your_supabase_project_ref # optional if PGPROJECT or SUPABASE_* provided
     ```
 
 3.  **Supabase Database:**
@@ -26,15 +32,15 @@ This is a Telegram bot for a repair service, refactored to use TypeScript and Su
     You need to set up two tables in your Supabase project: `repairs` and `orders`.
 
     **`repairs` table schema:**
-
     - `id` (bigint, primary key, generated)
     - `device` (text)
     - `title` (text)
     - `price` (numeric)
     - `desc` (text)
+    - `waranty` (text)
+    - `work_time` (text)
 
     **`orders` table schema:**
-
     - `id` (bigint, primary key, generated)
     - `ts` (timestamp with time zone)
     - `name` (text)
@@ -44,7 +50,6 @@ This is a Telegram bot for a repair service, refactored to use TypeScript and Su
     - `price` (numeric)
 
     **`notification_chats` table schema:**
-
     - `chat_id` (text, primary key)
 
 4.  **Build the project:**
@@ -62,3 +67,26 @@ This is a Telegram bot for a repair service, refactored to use TypeScript and Su
   ```bash
   npm run dev
   ```
+- **Seed the database (optional):**
+  ```bash
+  npm run db:seed
+  ```
+- **Import repairs from an XLS file:**
+  ```bash
+  npm run repairs:import
+  ```
+
+## Docker
+
+1. Build and start the containerized bot:
+   ```bash
+   docker compose up -d --build
+   ```
+2. Tail logs:
+   ```bash
+   docker compose logs -f bot
+   ```
+3. Seed the database (optional):
+   ```bash
+   docker compose run --rm bot node dist/seed.js
+   ```

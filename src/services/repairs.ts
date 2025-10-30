@@ -3,7 +3,15 @@ import { Repair } from "../types/database";
 
 export type RepairsCache = Record<
   string,
-  Record<string, { price: number; desc: string }>
+  Record<
+    string,
+    {
+      price: number;
+      desc: string;
+      waranty?: string | null;
+      work_time?: string | null;
+    }
+  >
 >;
 
 class RepairsService {
@@ -28,6 +36,8 @@ class RepairsService {
       repairsCache[repair.device][repair.title] = {
         price: repair.price,
         desc: repair.desc,
+        waranty: repair.waranty,
+        work_time: repair.work_time,
       };
     }
     this.repairs = repairsCache;
@@ -86,8 +96,20 @@ class RepairsService {
     return true;
   }
 
-  async addRepair(repair: Omit<Repair, "id">): Promise<boolean> {
-    const { error } = await supabase.from("repairs").insert(repair);
+  async addRepair(
+    repair: Pick<Repair, "device" | "title" | "price" | "desc"> &
+      Partial<Pick<Repair, "waranty" | "work_time">>,
+  ): Promise<boolean> {
+    const payload = {
+      device: repair.device,
+      title: repair.title,
+      price: repair.price,
+      desc: repair.desc,
+      waranty: repair.waranty ?? null,
+      work_time: repair.work_time ?? null,
+    };
+
+    const { error } = await supabase.from("repairs").insert(payload);
 
     if (error) {
       console.error("❌ Error adding repair:", error.message);
@@ -95,15 +117,17 @@ class RepairsService {
     }
 
     // update cache
-    if (!this.repairs[repair.device]) {
-      this.repairs[repair.device] = {};
+    if (!this.repairs[payload.device]) {
+      this.repairs[payload.device] = {};
     }
-    this.repairs[repair.device][repair.title] = {
-      price: repair.price,
-      desc: repair.desc,
+    this.repairs[payload.device][payload.title] = {
+      price: payload.price,
+      desc: payload.desc,
+      waranty: payload.waranty,
+      work_time: payload.work_time,
     };
-    if (!this.models.includes(repair.device)) {
-      this.models.push(repair.device);
+    if (!this.models.includes(payload.device)) {
+      this.models.push(payload.device);
       this.models.sort();
     }
     return true;

@@ -3,16 +3,22 @@ import postgres from "postgres";
 
 const { PGHOST, PGDATABASE, PGUSER, PGPASSWORD } = process.env;
 
+const projectRef =
+  process.env.PGPROJECT ||
+  process.env.SUPABASE_PROJECT_ID ||
+  process.env.SUPABASE_PROJECT_REF;
+
+const connectionOptions =
+  process.env.PGOPTIONS || (projectRef ? `project=${projectRef}` : undefined);
+
 const sql = postgres({
   host: PGHOST,
   database: PGDATABASE,
   username: PGUSER,
   password: PGPASSWORD,
-  port: 5432,
+  port: Number(process.env.PGPORT || 5432),
   ssl: "require",
-  connection: {
-    options: `project=your-project-name`,
-  },
+  ...(connectionOptions ? { connection: { options: connectionOptions } } : {}),
 });
 
 async function createTables() {
@@ -25,6 +31,8 @@ async function createTables() {
       title TEXT NOT NULL,
       price NUMERIC NOT NULL,
       desc TEXT,
+      waranty TEXT,
+      work_time TEXT,
       UNIQUE(device, title)
     );
   `;
@@ -63,19 +71,30 @@ async function seedRepairs() {
       title: "Замена экрана (копия)",
       price: 5000,
       desc: "Устанавливается копия дисплея, гарантия 3 месяца.",
+      waranty: "3 месяца",
+      work_time: "от 2 часов",
     },
     {
       device: "iPhone 6",
       title: "Замена аккумулятора",
       price: 2500,
       desc: "Оригинальный аккумулятор.",
+      waranty: "6 месяцев",
+      work_time: "1 час",
     },
   ];
 
   for (const repair of repairsData) {
     await sql`
-      INSERT INTO repairs (device, title, price, desc)
-      VALUES (${repair.device}, ${repair.title}, ${repair.price}, ${repair.desc})
+      INSERT INTO repairs (device, title, price, desc, waranty, work_time)
+      VALUES (
+        ${repair.device},
+        ${repair.title},
+        ${repair.price},
+        ${repair.desc},
+        ${repair.waranty},
+        ${repair.work_time}
+      )
       ON CONFLICT (device, title) DO NOTHING;
     `;
   }

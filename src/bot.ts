@@ -199,8 +199,17 @@ function buildIssueResponse(model: string, issue: string, admin = false) {
   if (!item) return null;
   const price = fmtPrice(item.price);
   const desc = buildDescription(issue, item.desc);
-  const text =
-    `📱 ${model}\n` + `⚙️ ${issue}\n` + `💰 ${price}\n` + `ℹ️ ${desc}`;
+  const waranty = item.waranty ?? null;
+  const workTime = item.work_time ?? null;
+  const lines = [
+    `📱 ${model}`,
+    `⚙️ ${issue}`,
+    `💰 ${price}`,
+    `🛡️ Гарантия: ${(waranty && waranty.trim()) || "—"}`,
+    `⏱️ Время: ${(workTime && workTime.trim()) || "—"}`,
+    `ℹ️ ${desc}`,
+  ];
+  const text = lines.join("\n");
   return { text, keyboard: orderKeyboard(admin) };
 }
 
@@ -518,8 +527,14 @@ bot.on("text", async (ctx, next) => {
             `⚙️ ${issue}\n` +
             `💰 ${priceFmt}`,
         );
-      } catch (e: any) {
-        console.error(`Не удалось уведомить чат ${chatId}:`, e.message);
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : typeof error === "string"
+              ? error
+              : JSON.stringify(error);
+        console.error(`Не удалось уведомить чат ${chatId}:`, message);
       }
     }
 
