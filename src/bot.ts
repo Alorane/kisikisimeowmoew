@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Telegraf, Markup, session, Context } from "telegraf";
-import { repairsService } from "./services/repairs";
+import { getDeviceType, repairsService } from "./services/repairs";
 import { ordersService } from "./services/orders";
 import { settingsService } from "./services/settings";
 
@@ -23,8 +23,9 @@ interface SessionData {
   step?: "name" | "phone";
   name?: string;
   phone?: string;
+  deviceType?: string;
   adminEdit?: {
-    mode: "add_issue" | "price" | "desc";
+    mode: "add_issue" | "price" | "desc" | "delete_issue";
     model: string;
     issue?: string;
     stage?: "title" | "price" | "desc";
@@ -133,33 +134,44 @@ const normalizePhoneInput = (raw: string) => {
   return { ok: false, reason: "length" };
 };
 
-function modelsKeyboard(page = 0) {
-  const all = repairsService.getModels();
+function deviceTypesKeyboard() {
+  const deviceTypes = repairsService.getDeviceTypes();
+  const buttons = deviceTypes.map((type) =>
+    Markup.button.callback(type, `type:${type}`),
+  );
+  const rows = chunk(buttons, 2);
+  return Markup.inlineKeyboard(rows);
+}
+
+function modelsKeyboard(deviceType: string, page = 0) {
+  const all = repairsService.getModelsForType(deviceType);
   const perPage = 12;
   const pages = Math.max(1, Math.ceil(all.length / perPage));
   const p = Math.max(0, Math.min(page, pages - 1));
   const slice = all.slice(p * perPage, p * perPage + perPage);
 
   const rows = chunk(
-    slice.map((m) => Markup.button.callback(m, `mdl:${p}:${m}`)),
+    slice.map((m) => Markup.button.callback(m, `mdl:${deviceType}:${m}`)),
     2,
   );
   const nav = [];
   if (pages > 1) {
     nav.push(
-      Markup.button.callback("⏮️", `nav:0`),
-      Markup.button.callback("◀️", `nav:${Math.max(0, p - 1)}`),
+      Markup.button.callback("⏮️", `nav:${deviceType}:0`),
+      Markup.button.callback("◀️", `nav:${deviceType}:${Math.max(0, p - 1)}`),
       Markup.button.callback(`${p + 1}/${pages}`, "noop"),
-      Markup.button.callback("▶️", `nav:${Math.min(pages - 1, p + 1)}`),
-      Markup.button.callback("⏭️", `nav:${pages - 1}`),
+      Markup.button.callback(
+        "▶️",
+        `nav:${deviceType}:${Math.min(pages - 1, p + 1)}`,
+      ),
+      Markup.button.callback("⏭️", `nav:${deviceType}:${pages - 1}`),
     );
   }
-  const keyboardRows = rows.length
-    ? [...rows]
-    : [[Markup.button.callback("↻ Обновить", `nav:${p}`)]];
-  keyboardRows.push(
-    nav.length ? nav : [Markup.button.callback("↻ Обновить", `nav:${p}`)],
-  );
+  const keyboardRows = rows.length ? [...rows] : [];
+  if (nav.length) {
+    keyboardRows.push(nav);
+  }
+  keyboardRows.push([Markup.button.callback("🔙 Назад", "back_types")]);
   return Markup.inlineKeyboard(keyboardRows);
 }
 
@@ -185,10 +197,13 @@ function orderKeyboard(admin = false) {
     [Markup.button.callback("🔙 К неисправностям", "back_issues")],
   ];
   if (admin) {
-    rows.unshift([
-      Markup.button.callback("✏️ Цена", "admin_edit_price"),
-      Markup.button.callback("📝 Описание", "admin_edit_desc"),
-    ]);
+    rows.unshift(
+      [
+        Markup.button.callback("✏️ Цена", "admin_edit_price"),
+        Markup.button.callback("📝 Описание", "admin_edit_desc"),
+      ],
+      [Markup.button.callback("🗑️ Удалить", "admin_delete_issue")],
+    );
   }
   return Markup.inlineKeyboard(rows);
 }
@@ -217,27 +232,47 @@ bot.start(async (ctx) => {
   if (!isPrivateChat(ctx)) return;
   ctx.session = {};
   await ctx.reply(
-    "Привет! 👋 Я помогу рассчитать ремонт. Сначала выбери модель iPhone:",
-    modelsKeyboard(0),
+    "Привет! 👋 Я помогу рассчитать ремонт. Сначала выбери тип устройства:",
+    deviceTypesKeyboard(),
   );
 });
 
-bot.action(/^nav:(\d+)$/, async (ctx) => {
-  const page = Number(ctx.match[1]);
+bot.action(/^nav:([^:]+):(\d+)$/, async (ctx) => {
+  const type = ctx.match[1];
+  const page = Number(ctx.match[2]);
   try {
-    await ctx.editMessageReplyMarkup(modelsKeyboard(page).reply_markup);
+    await ctx.editMessageText(
+      `Выбери модель ${type}:`,
+      modelsKeyboard(type, page),
+    );
   } catch {
-    await ctx.reply("Выбери модель:", modelsKeyboard(page));
+    // ignore
   }
   return ctx.answerCbQuery();
 });
 
-bot.action(/^mdl:(\d+):(.+)$/s, async (ctx) => {
+bot.action(/^type:(.+)$/s, async (ctx) => {
+  const type = ctx.match[1];
+  ctx.session.deviceType = type;
+  try {
+    await ctx.editMessageText(
+      `Выбери модель ${type}:`,
+      modelsKeyboard(type, 0),
+    );
+  } catch {
+    await ctx.reply(`Выбери модель ${type}:`, modelsKeyboard(type, 0));
+  }
+  return ctx.answerCbQuery();
+});
+
+bot.action(/^mdl:([^:]+):(.+)$/s, async (ctx) => {
+  const type = ctx.match[1];
   const model = ctx.match[2];
   const repairs = repairsService.getRepairs();
   if (!repairs[model]) {
     return ctx.answerCbQuery("Модель не найдена", { show_alert: true });
   }
+  ctx.session.deviceType = type;
   ctx.session.model = model;
   ctx.session.issues = Object.keys(repairs[model]);
   try {
@@ -255,10 +290,35 @@ bot.action(/^mdl:(\d+):(.+)$/s, async (ctx) => {
 });
 
 bot.action("back_models", async (ctx) => {
+  const type = ctx.session?.deviceType;
+  if (!type) {
+    // fallback to device types
+    try {
+      await ctx.editMessageText(
+        "Выбери тип устройства:",
+        deviceTypesKeyboard(),
+      );
+    } catch {
+      await ctx.reply("Выбери тип устройства:", deviceTypesKeyboard());
+    }
+    return ctx.answerCbQuery();
+  }
   try {
-    await ctx.editMessageText("Выбери модель:", modelsKeyboard(0));
+    await ctx.editMessageText(
+      `Выбери модель ${type}:`,
+      modelsKeyboard(type, 0),
+    );
   } catch {
-    await ctx.reply("Выбери модель:", modelsKeyboard(0));
+    await ctx.reply(`Выбери модель ${type}:`, modelsKeyboard(type, 0));
+  }
+  return ctx.answerCbQuery();
+});
+
+bot.action("back_types", async (ctx) => {
+  try {
+    await ctx.editMessageText("Выбери тип устройства:", deviceTypesKeyboard());
+  } catch {
+    await ctx.reply("Выбери тип устройства:", deviceTypesKeyboard());
   }
   return ctx.answerCbQuery();
 });
@@ -362,6 +422,22 @@ bot.action("admin_edit_desc", async (ctx) => {
   await ctx.reply(`Введи новое описание для «${issue}».`);
 });
 
+bot.action("admin_delete_issue", async (ctx) => {
+  if (!isAdminMode(ctx)) {
+    return ctx.answerCbQuery("Нет доступа", { show_alert: true });
+  }
+  const { model, issue } = ctx.session || {};
+  if (!model || !issue) {
+    return ctx.answerCbQuery("Сначала выбери работу", { show_alert: true });
+  }
+  ctx.session.adminEdit = { mode: "delete_issue", model, issue };
+  ctx.session.step = undefined;
+  await ctx.answerCbQuery();
+  await ctx.reply(
+    `Точно удалить «${issue}» для ${model}? Это действие нельзя будет отменить. Напиши «да» для подтверждения.`,
+  );
+});
+
 bot.on("text", async (ctx, next) => {
   const message = ctx.message;
   if (!("text" in message)) return next();
@@ -399,6 +475,28 @@ bot.on("text", async (ctx, next) => {
         ctx.reply(`Описание для «${issue}» обновлено.`);
       } else {
         ctx.reply("Не удалось сохранить изменения. Проверь логи.");
+      }
+      ctx.session.adminEdit = undefined;
+      return;
+    }
+
+    if (mode === "delete_issue" && issue) {
+      if (text.toLowerCase() === "да") {
+        const saved = await repairsService.deleteRepair(model, issue);
+        if (saved) {
+          ctx.reply(`Работа «${issue}» для ${model} удалена.`);
+          // go to issues list
+          const repairs = repairsService.getRepairs();
+          ctx.session.issues = Object.keys(repairs[model] || {});
+          await ctx.reply(
+            `📱 Модель: ${model}\nВыбери неисправность:`,
+            issuesKeyboard(model, isAdminMode(ctx)),
+          );
+        } else {
+          ctx.reply("Не удалось удалить. Проверь логи.");
+        }
+      } else {
+        ctx.reply("Удаление отменено.");
       }
       ctx.session.adminEdit = undefined;
       return;
@@ -449,14 +547,19 @@ bot.on("text", async (ctx, next) => {
   }
 
   const repairs = repairsService.getRepairs();
-  if (repairs[text]) {
-    ctx.session = ctx.session || {};
-    ctx.session.model = text;
-    ctx.session.issues = Object.keys(repairs[text]);
-    return ctx.reply(
-      `📱 Модель: ${text}\nВыбери неисправность:`,
-      issuesKeyboard(text, isAdminMode(ctx)),
-    );
+  const type = getDeviceType(text);
+  if (type) {
+    const models = repairsService.getModelsForType(type);
+    if (models.includes(text)) {
+      ctx.session = ctx.session || {};
+      ctx.session.deviceType = type;
+      ctx.session.model = text;
+      ctx.session.issues = Object.keys(repairs[text]);
+      return ctx.reply(
+        `📱 Модель: ${text}\nВыбери неисправность:`,
+        issuesKeyboard(text, isAdminMode(ctx)),
+      );
+    }
   }
 
   const step = ctx.session?.step;
@@ -544,8 +647,8 @@ bot.on("text", async (ctx, next) => {
 
   if (!step) {
     return ctx.reply(
-      "Выбери модель из меню ниже или введи её текстом точно как в прайсе:",
-      modelsKeyboard(0),
+      "Выбери тип устройства из меню ниже:",
+      deviceTypesKeyboard(),
     );
   }
 
@@ -592,12 +695,12 @@ bot.command("admin", async (ctx) => {
     );
     return;
   }
-  await ctx.reply("Выбери модель:", modelsKeyboard(0));
+  await ctx.reply("Выбери тип устройства:", deviceTypesKeyboard());
 });
 
 bot.command("models", async (ctx) => {
   if (!isPrivateChat(ctx)) return;
-  await ctx.reply("Выбери модель:", modelsKeyboard(0));
+  await ctx.reply("Выбери тип устройства:", deviceTypesKeyboard());
 });
 
 bot.command("reload", async (ctx) => {

@@ -14,13 +14,29 @@ export type RepairsCache = Record<
   >
 >;
 
+const deviceTypePatterns = [
+  { type: "iPhone", pattern: /iphone/i },
+  { type: "iPad", pattern: /ipad/i },
+  { type: "Apple Watch", pattern: /watch/i },
+  { type: "MacBook", pattern: /macbook/i },
+];
+
+export const getDeviceType = (model: string) => {
+  for (const { type, pattern } of deviceTypePatterns) {
+    if (pattern.test(model)) return type;
+  }
+  return "Другое";
+};
+
 class RepairsService {
   private repairs: RepairsCache = {};
   private models: string[] = [];
+  private modelsGrouped: Record<string, string[]> = {};
+  private deviceTypes: string[] = [];
   private isLoaded = false;
 
   async loadRepairs() {
-    if (this.isLoaded) return;
+    this.isLoaded = false;
 
     const { data, error } = await supabase.from("repairs").select("*");
     if (error) {
@@ -42,8 +58,24 @@ class RepairsService {
     }
     this.repairs = repairsCache;
     this.models = Object.keys(this.repairs).sort();
+
+    const groups: Record<string, string[]> = {};
+    for (const model of this.models) {
+      const type = getDeviceType(model);
+      if (!groups[type]) groups[type] = [];
+      groups[type].push(model);
+    }
+    this.modelsGrouped = groups;
+    this.deviceTypes = Object.keys(this.modelsGrouped).sort((a, b) => {
+      if (a === "Другое") return 1;
+      if (b === "Другое") return -1;
+      return a.localeCompare(b);
+    });
+
     this.isLoaded = true;
-    console.log(`✅ Loaded ${data.length} repairs from Supabase.`);
+    if (data) {
+      console.log(`✅ Loaded ${data.length} repairs from Supabase.`);
+    }
   }
 
   getRepairs(): Readonly<RepairsCache> {
@@ -52,6 +84,14 @@ class RepairsService {
 
   getModels(): Readonly<string[]> {
     return this.models;
+  }
+
+  getDeviceTypes(): Readonly<string[]> {
+    return this.deviceTypes;
+  }
+
+  getModelsForType(type: string): Readonly<string[]> {
+    return this.modelsGrouped[type] || [];
   }
 
   async updatePrice(
@@ -130,6 +170,30 @@ class RepairsService {
       this.models.push(payload.device);
       this.models.sort();
     }
+    await this.loadRepairs(); // force reload to update groupings
+    return true;
+  }
+
+  async deleteRepair(model: string, issue: string): Promise<boolean> {
+    const { error } = await supabase
+      .from("repairs")
+      .delete()
+      .match({ device: model, title: issue });
+
+    if (error) {
+      console.error("❌ Error deleting repair:", error.message);
+      return false;
+    }
+
+    // update cache
+    if (this.repairs[model]) {
+      delete this.repairs[model][issue];
+      if (Object.keys(this.repairs[model]).length === 0) {
+        delete this.repairs[model];
+        this.models = this.models.filter((m) => m !== model);
+      }
+    }
+    await this.loadRepairs(); // force reload to update groupings
     return true;
   }
 }
