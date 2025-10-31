@@ -75,15 +75,14 @@ bot.catch((err) => {
 
 // Main function
 async function main() {
-  await repairsService.loadRepairs();
-  await settingsService.loadNotifyChats(ADMIN_IDS);
+  console.log("🚀 Starting bot initialization...");
+  console.log(`👑 Admin IDs: ${ADMIN_IDS.join(", ")}`);
 
-  // Set basic commands for all users
-  await bot.api.setMyCommands([
-    { command: "start", description: "Начать работу с ботом" },
-    { command: "models", description: "Выбрать тип устройства" },
-    { command: "admin", description: "Включить/выключить админ режим" },
-  ]);
+  console.log("📡 Loading repairs from database...");
+  await repairsService.loadRepairs();
+
+  console.log("📢 Loading notification settings...");
+  await settingsService.loadNotifyChats(ADMIN_IDS);
 
   bot.start();
   console.log("🚀 Бот запущен! Админка и клиентский поток работают стабильно.");

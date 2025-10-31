@@ -11,12 +11,15 @@ export interface SessionData {
   deviceType?: string;
   lastMessageId?: number;
   adminEdit?: {
-    mode: "add_issue" | "price" | "desc" | "delete_issue";
+    mode: "add_issue" | "price" | "desc" | "waranty" | "work_time" | "delete_issue";
     model: string;
     issue?: string;
-    stage?: "title" | "price" | "desc";
+    stage?: "title" | "price" | "desc" | "waranty" | "work_time";
     title?: string;
     price?: number;
+    desc?: string;
+    waranty?: string;
+    work_time?: string;
   };
 }
 

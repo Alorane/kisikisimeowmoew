@@ -36,6 +36,7 @@ class RepairsService {
   private isLoaded = false;
 
   async loadRepairs() {
+    console.log("🔄 Starting loadRepairs...");
     this.isLoaded = false;
 
     const { data, error } = await supabase.from("repairs").select("*");
@@ -43,6 +44,8 @@ class RepairsService {
       console.error("❌ Error loading repairs:", error.message);
       return;
     }
+
+    console.log(`📊 Received ${data?.length || 0} repairs from database`);
 
     const repairsCache: RepairsCache = {};
     for (const repair of data as Repair[]) {
@@ -59,9 +62,12 @@ class RepairsService {
     this.repairs = repairsCache;
     this.models = Object.keys(this.repairs).sort();
 
+    console.log(`📱 Found models: ${this.models.join(", ")}`);
+
     const groups: Record<string, string[]> = {};
     for (const model of this.models) {
       const type = getDeviceType(model);
+      console.log(`🏷️ Model ${model} -> type ${type}`);
       if (!groups[type]) groups[type] = [];
       groups[type].push(model);
     }
@@ -72,10 +78,10 @@ class RepairsService {
       return a.localeCompare(b);
     });
 
+    console.log(`📂 Device types: ${this.deviceTypes.join(", ")}`);
+    console.log(`📂 Models grouped:`, this.modelsGrouped);
+
     this.isLoaded = true;
-    if (data) {
-      console.log(`✅ Loaded ${data.length} repairs from Supabase.`);
-    }
   }
 
   getRepairs(): Readonly<RepairsCache> {
@@ -91,7 +97,11 @@ class RepairsService {
   }
 
   getModelsForType(type: string): Readonly<string[]> {
-    return this.modelsGrouped[type] || [];
+    const models = this.modelsGrouped[type] || [];
+    console.log(
+      `🔍 getModelsForType(${type}) -> ${models.length} models: ${models.join(", ")}`,
+    );
+    return models;
   }
 
   async updatePrice(
@@ -132,6 +142,48 @@ class RepairsService {
 
     if (this.repairs[model]?.[issue]) {
       this.repairs[model][issue].desc = desc;
+    }
+    return true;
+  }
+
+  async updateWaranty(
+    model: string,
+    issue: string,
+    waranty: string | null,
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from("repairs")
+      .update({ waranty })
+      .match({ device: model, title: issue });
+
+    if (error) {
+      console.error("❌ Error updating waranty:", error.message);
+      return false;
+    }
+
+    if (this.repairs[model]?.[issue]) {
+      this.repairs[model][issue].waranty = waranty;
+    }
+    return true;
+  }
+
+  async updateWorkTime(
+    model: string,
+    issue: string,
+    work_time: string | null,
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from("repairs")
+      .update({ work_time })
+      .match({ device: model, title: issue });
+
+    if (error) {
+      console.error("❌ Error updating work_time:", error.message);
+      return false;
+    }
+
+    if (this.repairs[model]?.[issue]) {
+      this.repairs[model][issue].work_time = work_time;
     }
     return true;
   }

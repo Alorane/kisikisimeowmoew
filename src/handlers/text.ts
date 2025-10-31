@@ -61,6 +61,36 @@ export function registerTextHandler(
         return;
       }
 
+      if (mode === "waranty" && issue) {
+        const waranty = text.trim() || null;
+        const saved = await repairsService.updateWaranty(model, issue, waranty);
+        if (saved) {
+          ctx.reply(`Гарантия для «${issue}» обновлена: ${waranty || "—"}.`);
+        } else {
+          ctx.reply("Не удалось сохранить изменения. Проверь логи.");
+        }
+        ctx.session.adminEdit = undefined;
+        return;
+      }
+
+      if (mode === "work_time" && issue) {
+        const workTime = text.trim() || null;
+        const saved = await repairsService.updateWorkTime(
+          model,
+          issue,
+          workTime,
+        );
+        if (saved) {
+          ctx.reply(
+            `Время выполнения для «${issue}» обновлено: ${workTime || "—"}.`,
+          );
+        } else {
+          ctx.reply("Не удалось сохранить изменения. Проверь логи.");
+        }
+        ctx.session.adminEdit = undefined;
+        return;
+      }
+
       if (mode === "delete_issue" && issue) {
         if (text.toLowerCase() === "да") {
           const saved = await repairsService.deleteRepair(model, issue);
@@ -109,13 +139,31 @@ export function registerTextHandler(
           return ctx.reply("Опиши работу. Можно несколько предложений.");
         }
         if (stage === "desc") {
+          editor.desc = text;
+          editor.stage = "waranty";
+          ctx.session.adminEdit = editor;
+          return ctx.reply(
+            "Укажи гарантию (например: '30 дней', '6 месяцев' или оставь пустым).",
+          );
+        }
+        if (stage === "waranty") {
+          editor.waranty = text.trim() || undefined;
+          editor.stage = "work_time";
+          ctx.session.adminEdit = editor;
+          return ctx.reply(
+            "Укажи время выполнения работы (например: '2 часа', '1-2 дня' или оставь пустым).",
+          );
+        }
+        if (stage === "work_time") {
           const title = editor.title || "Новая работа";
           const price = editor.price ?? 0;
           const saved = await repairsService.addRepair({
             device: model,
             title,
             price,
-            desc: text,
+            desc: editor.desc || "",
+            waranty: editor.waranty,
+            work_time: text.trim() || undefined,
           });
           if (saved) {
             ctx.reply(`Работа «${title}» добавлена к ${model}.`);

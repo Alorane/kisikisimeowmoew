@@ -16,14 +16,20 @@ export function deviceTypesKeyboard() {
 }
 
 export function modelsKeyboard(deviceType: string, page = 0) {
+  console.log(`⌨️ Creating keyboard for ${deviceType}, page ${page}`);
   const all = repairsService.getModelsForType(deviceType);
   const perPage = 12;
   const pages = Math.max(1, Math.ceil(all.length / perPage));
   const p = Math.max(0, Math.min(page, pages - 1));
   const slice = all.slice(p * perPage, p * perPage + perPage);
 
+  console.log(
+    `📄 Page ${p + 1}/${pages}, showing ${slice.length} models: ${slice.join(", ")}`,
+  );
+
   const keyboard = new InlineKeyboard();
   const rows = chunk(slice, 2);
+  console.log(`🔢 Created ${rows.length} rows for keyboard`);
 
   for (const row of rows) {
     for (const model of row) {
@@ -71,6 +77,9 @@ export function orderKeyboard(admin = false) {
     keyboard
       .text("✏️ Цена", "admin_edit_price")
       .text("📝 Описание", "admin_edit_desc")
+      .row()
+      .text("🛡️ Гарантия", "admin_edit_waranty")
+      .text("⏱️ Время", "admin_edit_work_time")
       .row();
     keyboard.text("🗑️ Удалить", "admin_delete_issue").row();
   }

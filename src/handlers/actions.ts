@@ -33,15 +33,54 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
 
   bot.callbackQuery(/^type:(.+)$/s, async (ctx) => {
     const type = ctx.match[1];
+    console.log(`📱 User selected device type: ${type}`);
     ctx.session.deviceType = type;
     try {
+      console.log(`📝 Editing message for type selection: ${type}`);
       await ctx.editMessageText(`Выбери модель ${type}:`, {
         reply_markup: modelsKeyboard(type, 0),
       });
-    } catch {
+      console.log(`✅ Successfully edited message for type: ${type}`);
+    } catch (error) {
+      console.log(
+        `❌ Failed to edit message for type ${type}, trying reply:`,
+        error,
+      );
       await ctx.reply(`Выбери модель ${type}:`, {
         reply_markup: modelsKeyboard(type, 0),
       });
+      console.log(`✅ Successfully replied for type: ${type}`);
+    }
+    return ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^mdl:(.+):(.+)$/s, async (ctx) => {
+    const deviceType = ctx.match[1];
+    const model = ctx.match[2];
+    console.log(`📱 User selected model: ${model} (type: ${deviceType})`);
+
+    ctx.session.model = model;
+    ctx.session.issues = Object.keys(repairsService.getRepairs()[model] || {});
+
+    console.log(
+      `🔧 Available issues for ${model}: ${ctx.session.issues.join(", ")}`,
+    );
+
+    try {
+      console.log(`📝 Editing message for model selection: ${model}`);
+      await ctx.editMessageText(`📱 Модель: ${model}\nВыбери неисправность:`, {
+        reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+      });
+      console.log(`✅ Successfully edited message for model: ${model}`);
+    } catch (error) {
+      console.log(
+        `❌ Failed to edit message for model ${model}, trying reply:`,
+        error,
+      );
+      await ctx.reply(`📱 Модель: ${model}\nВыбери неисправность:`, {
+        reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+      });
+      console.log(`✅ Successfully replied for model: ${model}`);
     }
     return ctx.answerCallbackQuery();
   });
@@ -195,6 +234,46 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(ctx, `Введи новое описание для «${issue}».`);
+  });
+
+  bot.callbackQuery("admin_edit_waranty", async (ctx) => {
+    if (!isAdminMode(ctx)) {
+      return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
+    }
+    const { model, issue } = ctx.session;
+    if (!model || !issue) {
+      return ctx.answerCallbackQuery({
+        text: "Сначала выбери работу",
+        show_alert: true,
+      });
+    }
+    ctx.session.adminEdit = { mode: "waranty", model, issue };
+    ctx.session.step = undefined;
+    await ctx.answerCallbackQuery();
+    await sendMessage(
+      ctx,
+      `Введи новую гарантию для «${issue}» (например: '30 дней', '6 месяцев').`,
+    );
+  });
+
+  bot.callbackQuery("admin_edit_work_time", async (ctx) => {
+    if (!isAdminMode(ctx)) {
+      return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
+    }
+    const { model, issue } = ctx.session;
+    if (!model || !issue) {
+      return ctx.answerCallbackQuery({
+        text: "Сначала выбери работу",
+        show_alert: true,
+      });
+    }
+    ctx.session.adminEdit = { mode: "work_time", model, issue };
+    ctx.session.step = undefined;
+    await ctx.answerCallbackQuery();
+    await sendMessage(
+      ctx,
+      `Введи новое время выполнения для «${issue}» (например: '2 часа', '1-2 дня').`,
+    );
   });
 
   bot.callbackQuery("admin_delete_issue", async (ctx) => {
