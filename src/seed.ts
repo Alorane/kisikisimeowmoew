@@ -55,7 +55,49 @@ async function createTables() {
     );
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS device_types (
+      id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+      name TEXT NOT NULL UNIQUE,
+      pattern TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+
+  // Add index for faster lookups
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_device_types_sort_order ON device_types(sort_order);
+  `;
+
   console.log("Tables created successfully.");
+}
+
+async function seedDeviceTypes() {
+  console.log("Seeding device types data...");
+
+  const deviceTypesData = [
+    { name: "iPhone", pattern: "iphone", sort_order: 1 },
+    { name: "iPad", pattern: "ipad", sort_order: 2 },
+    { name: "Apple Watch", pattern: "watch", sort_order: 3 },
+    { name: "MacBook", pattern: "macbook", sort_order: 4 },
+    { name: "Другое", pattern: ".*", sort_order: 999 },
+  ];
+
+  for (const deviceType of deviceTypesData) {
+    await sql`
+      INSERT INTO device_types (name, pattern, sort_order)
+      VALUES (
+        ${deviceType.name},
+        ${deviceType.pattern},
+        ${deviceType.sort_order}
+      )
+      ON CONFLICT (name) DO NOTHING;
+    `;
+  }
+
+  console.log("Device types data seeded.");
 }
 
 async function seedRepairs() {
@@ -105,6 +147,7 @@ async function seedRepairs() {
 async function main() {
   try {
     await createTables();
+    await seedDeviceTypes();
     await seedRepairs();
     console.log("Database seeding completed.");
   } catch (error) {

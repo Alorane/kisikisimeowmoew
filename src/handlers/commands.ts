@@ -2,7 +2,11 @@ import { Bot } from "grammy";
 import type { BotContext } from "../types/bot";
 import { repairsService } from "../services/repairs";
 import { settingsService } from "../services/settings";
-import { sendMessage, sendRepairMessage } from "../utils/bot";
+import {
+  sendMessage,
+  sendRepairMessage,
+  sendKeyboardMessage,
+} from "../utils/bot";
 import { deviceTypesKeyboard, issuesKeyboard } from "../utils/keyboards";
 import { buildIssueResponse } from "../utils/responses";
 
@@ -22,8 +26,19 @@ export function registerCommands(
   const { isAdmin, isPrivateChat, isAdminMode, setAdminMode } = adminUtils;
 
   bot.command("start", async (ctx) => {
+    console.log(`🚀 Command /start triggered for chat ${ctx.chat?.id}`);
     if (!isPrivateChat(ctx)) return;
-    ctx.session = {};
+
+    // Don't reset the entire session, just reset navigation state
+    ctx.session.model = undefined;
+    ctx.session.issues = undefined;
+    ctx.session.issue = undefined;
+    ctx.session.price = undefined;
+    ctx.session.deviceType = undefined;
+    ctx.session.step = undefined;
+    ctx.session.name = undefined;
+    ctx.session.phone = undefined;
+    // Keep keyboardMessageId and repairMessageId to allow deletion of previous keyboards
 
     // Set appropriate commands for this chat
     if (setCommandsForChat && ctx.chat?.id) {
@@ -31,14 +46,17 @@ export function registerCommands(
       await setCommandsForChat(ctx.chat.id, isUserAdmin && isAdminMode(ctx));
     }
 
-    await sendMessage(
+    await sendKeyboardMessage(
       ctx,
       "Привет! 👋 Я помогу рассчитать ремонт. Сначала выбери тип устройства:",
-      { reply_markup: deviceTypesKeyboard() },
+      { reply_markup: deviceTypesKeyboard(isAdminMode(ctx)) },
     );
   });
 
   bot.command("admin", async (ctx) => {
+    console.log(
+      `👑 Command /admin triggered for chat ${ctx.chat?.id}, user ${ctx.from?.id}`,
+    );
     if (!isAdmin(ctx)) {
       return ctx.reply("Нет доступа.");
     }
@@ -91,20 +109,24 @@ export function registerCommands(
       }
     }
     if (model && repairs[model]) {
-      await sendMessage(ctx, `📱 Модель: ${model}\nВыбери неисправность:`, {
-        reply_markup: issuesKeyboard(model, true),
-      });
+      await sendKeyboardMessage(
+        ctx,
+        `📱 Модель: ${model}\nВыбери неисправность:`,
+        {
+          reply_markup: issuesKeyboard(model, true),
+        },
+      );
       return;
     }
-    await sendMessage(ctx, "Выбери тип устройства:", {
-      reply_markup: deviceTypesKeyboard(),
+    await sendKeyboardMessage(ctx, "Выбери тип устройства:", {
+      reply_markup: deviceTypesKeyboard(isAdminMode(ctx)),
     });
   });
 
   bot.command("models", async (ctx) => {
     if (!isPrivateChat(ctx)) return;
-    await sendMessage(ctx, "Выбери тип устройства:", {
-      reply_markup: deviceTypesKeyboard(),
+    await sendKeyboardMessage(ctx, "Выбери тип устройства:", {
+      reply_markup: deviceTypesKeyboard(isAdminMode(ctx)),
     });
   });
 

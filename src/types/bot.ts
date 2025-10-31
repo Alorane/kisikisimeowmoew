@@ -11,11 +11,31 @@ export interface SessionData {
   deviceType?: string;
   lastMessageId?: number;
   repairMessageId?: number;
+  keyboardMessageId?: number;
   adminEdit?: {
-    mode: "add_issue" | "price" | "desc" | "waranty" | "work_time" | "delete_issue";
-    model: string;
+    mode:
+      | "add_issue"
+      | "price"
+      | "desc"
+      | "waranty"
+      | "work_time"
+      | "delete_issue"
+      | "add_device_type"
+      | "add_model";
+    model?: string;
+    deviceType?: string;
+    deviceTypeName?: string;
+    pattern?: string;
     issue?: string;
-    stage?: "title" | "price" | "desc" | "waranty" | "work_time";
+    stage?:
+      | "title"
+      | "price"
+      | "desc"
+      | "waranty"
+      | "work_time"
+      | "name"
+      | "pattern"
+      | "sort_order";
     title?: string;
     price?: number;
     desc?: string;

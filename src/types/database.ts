@@ -17,3 +17,10 @@ export interface Repair {
   waranty: string | null;
   work_time: string | null;
 }
+
+export interface DeviceType {
+  id: number;
+  name: string; // e.g. 'iPhone', 'iPad', 'MacBook'
+  pattern: string; // regex pattern for device matching
+  sort_order: number; // for custom sorting
+}

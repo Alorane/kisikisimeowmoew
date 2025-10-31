@@ -1,7 +1,11 @@
 import { Bot } from "grammy";
 import type { BotContext } from "../types/bot";
 import { repairsService } from "../services/repairs";
-import { sendMessage, sendRepairMessage } from "../utils/bot";
+import {
+  sendMessage,
+  sendRepairMessage,
+  sendKeyboardMessage,
+} from "../utils/bot";
 import {
   deviceTypesKeyboard,
   modelsKeyboard,
@@ -23,7 +27,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     const page = Number(ctx.match[2]);
     try {
       await ctx.editMessageText(`Выбери модель ${type}:`, {
-        reply_markup: modelsKeyboard(type, page),
+        reply_markup: modelsKeyboard(type, page, isAdminMode(ctx)),
       });
     } catch {
       // ignore
@@ -38,7 +42,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     try {
       console.log(`📝 Editing message for type selection: ${type}`);
       await ctx.editMessageText(`Выбери модель ${type}:`, {
-        reply_markup: modelsKeyboard(type, 0),
+        reply_markup: modelsKeyboard(type, 0, isAdminMode(ctx)),
       });
       console.log(`✅ Successfully edited message for type: ${type}`);
     } catch (error) {
@@ -47,7 +51,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
         error,
       );
       await ctx.reply(`Выбери модель ${type}:`, {
-        reply_markup: modelsKeyboard(type, 0),
+        reply_markup: modelsKeyboard(type, 0, isAdminMode(ctx)),
       });
       console.log(`✅ Successfully replied for type: ${type}`);
     }
@@ -94,7 +98,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
           reply_markup: deviceTypesKeyboard(),
         });
       } catch {
-        await ctx.reply("Выбери тип устройства:", {
+        await sendKeyboardMessage(ctx, "Выбери тип устройства:", {
           reply_markup: deviceTypesKeyboard(),
         });
       }
@@ -102,11 +106,11 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     }
     try {
       await ctx.editMessageText(`Выбери модель ${type}:`, {
-        reply_markup: modelsKeyboard(type, 0),
+        reply_markup: modelsKeyboard(type, 0, isAdminMode(ctx)),
       });
     } catch {
-      await ctx.reply(`Выбери модель ${type}:`, {
-        reply_markup: modelsKeyboard(type, 0),
+      await sendKeyboardMessage(ctx, `Выбери модель ${type}:`, {
+        reply_markup: modelsKeyboard(type, 0, isAdminMode(ctx)),
       });
     }
     return ctx.answerCallbackQuery();
@@ -115,11 +119,11 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
   bot.callbackQuery("back_types", async (ctx) => {
     try {
       await ctx.editMessageText("Выбери тип устройства:", {
-        reply_markup: deviceTypesKeyboard(),
+        reply_markup: deviceTypesKeyboard(isAdminMode(ctx)),
       });
     } catch {
-      await ctx.reply("Выбери тип устройства:", {
-        reply_markup: deviceTypesKeyboard(),
+      await sendKeyboardMessage(ctx, "Выбери тип устройства:", {
+        reply_markup: deviceTypesKeyboard(isAdminMode(ctx)),
       });
     }
     return ctx.answerCallbackQuery();
@@ -168,9 +172,13 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
         reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
       });
     } catch {
-      await ctx.reply(`📱 Модель: ${model}\nВыбери неисправность:`, {
-        reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
-      });
+      await sendKeyboardMessage(
+        ctx,
+        `📱 Модель: ${model}\nВыбери неисправность:`,
+        {
+          reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+        },
+      );
     }
     return ctx.answerCallbackQuery();
   });
@@ -180,6 +188,33 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     ctx.session.step = "name";
     await ctx.answerCallbackQuery();
     await sendMessage(ctx, "Окей! Введи, пожалуйста, как тебя зовут:");
+  });
+
+  bot.callbackQuery("add_device_type", async (ctx) => {
+    if (!isAdminMode(ctx)) {
+      return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
+    }
+    ctx.session.adminEdit = { mode: "add_device_type", stage: "name" };
+    ctx.session.step = undefined;
+    await ctx.answerCallbackQuery();
+    await sendMessage(
+      ctx,
+      "Введи название нового типа устройства (например: 'iPhone', 'MacBook', 'iPad'):",
+    );
+  });
+
+  bot.callbackQuery(/^add_model:(.+)$/s, async (ctx) => {
+    if (!isAdminMode(ctx)) {
+      return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
+    }
+    const deviceType = ctx.match[1];
+    ctx.session.adminEdit = { mode: "add_model", deviceType, stage: "name" };
+    ctx.session.step = undefined;
+    await ctx.answerCallbackQuery();
+    await sendMessage(
+      ctx,
+      `Введи название новой модели для типа "${deviceType}" (например: 'iPhone 15 Pro')`,
+    );
   });
 
   bot.callbackQuery("noop", (ctx) => ctx.answerCallbackQuery());

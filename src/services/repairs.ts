@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabase";
-import { Repair } from "../types/database";
+import { Repair, DeviceType } from "../types/database";
 
 export type RepairsCache = Record<
   string,
@@ -14,12 +14,8 @@ export type RepairsCache = Record<
   >
 >;
 
-const deviceTypePatterns = [
-  { type: "iPhone", pattern: /iphone/i },
-  { type: "iPad", pattern: /ipad/i },
-  { type: "Apple Watch", pattern: /watch/i },
-  { type: "MacBook", pattern: /macbook/i },
-];
+// Device type patterns loaded from database
+let deviceTypePatterns: { type: string; pattern: RegExp }[] = [];
 
 export const getDeviceType = (model: string) => {
   for (const { type, pattern } of deviceTypePatterns) {
@@ -33,11 +29,45 @@ class RepairsService {
   private models: string[] = [];
   private modelsGrouped: Record<string, string[]> = {};
   private deviceTypes: string[] = [];
+  private deviceTypeRecords: DeviceType[] = [];
   private isLoaded = false;
+
+  async loadDeviceTypes() {
+    console.log("🔄 Loading device types...");
+    const { data, error } = await supabase
+      .from("device_types")
+      .select("*")
+      .order("sort_order");
+
+    if (error) {
+      console.error("❌ Error loading device types:", error.message);
+      return false;
+    }
+
+    if (data) {
+      this.deviceTypeRecords = data as DeviceType[];
+      deviceTypePatterns = this.deviceTypeRecords.map((dt) => ({
+        type: dt.name,
+        pattern: new RegExp(dt.pattern, "i"),
+      }));
+      console.log(
+        `📂 Loaded ${data.length} device types:`,
+        this.deviceTypeRecords.map((dt) => dt.name),
+      );
+    }
+    return true;
+  }
 
   async loadRepairs() {
     console.log("🔄 Starting loadRepairs...");
     this.isLoaded = false;
+
+    // First load device types
+    const typesLoaded = await this.loadDeviceTypes();
+    if (!typesLoaded) {
+      console.error("❌ Failed to load device types");
+      return;
+    }
 
     const { data, error } = await supabase.from("repairs").select("*");
     if (error) {
@@ -72,11 +102,23 @@ class RepairsService {
       groups[type].push(model);
     }
     this.modelsGrouped = groups;
-    this.deviceTypes = Object.keys(this.modelsGrouped).sort((a, b) => {
-      if (a === "Другое") return 1;
-      if (b === "Другое") return -1;
-      return a.localeCompare(b);
-    });
+
+    // Sort device types by sort_order from database
+    this.deviceTypes = this.deviceTypeRecords
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((dt) => dt.name)
+      .filter(
+        (name) =>
+          this.modelsGrouped[name] && this.modelsGrouped[name].length > 0,
+      );
+
+    // Add "Другое" at the end if it exists and has models
+    if (
+      this.modelsGrouped["Другое"] &&
+      this.modelsGrouped["Другое"].length > 0
+    ) {
+      this.deviceTypes.push("Другое");
+    }
 
     console.log(`📂 Device types: ${this.deviceTypes.join(", ")}`);
     console.log(`📂 Models grouped:`, this.modelsGrouped);
@@ -246,6 +288,60 @@ class RepairsService {
       }
     }
     await this.loadRepairs(); // force reload to update groupings
+    return true;
+  }
+
+  // Device Types CRUD operations
+  getDeviceTypeRecords(): Readonly<DeviceType[]> {
+    return this.deviceTypeRecords;
+  }
+
+  async addDeviceType(
+    deviceType: Omit<DeviceType, "id" | "created_at" | "updated_at">,
+  ): Promise<boolean> {
+    const { error } = await supabase.from("device_types").insert(deviceType);
+
+    if (error) {
+      console.error("❌ Error adding device type:", error.message);
+      return false;
+    }
+
+    await this.loadDeviceTypes(); // reload patterns
+    return true;
+  }
+
+  async updateDeviceType(
+    id: number,
+    updates: Partial<Pick<DeviceType, "name" | "pattern" | "sort_order">>,
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from("device_types")
+      .update(updates)
+      .match({ id });
+
+    if (error) {
+      console.error("❌ Error updating device type:", error.message);
+      return false;
+    }
+
+    await this.loadDeviceTypes(); // reload patterns
+    await this.loadRepairs(); // reload groupings
+    return true;
+  }
+
+  async deleteDeviceType(id: number): Promise<boolean> {
+    const { error } = await supabase
+      .from("device_types")
+      .delete()
+      .match({ id });
+
+    if (error) {
+      console.error("❌ Error deleting device type:", error.message);
+      return false;
+    }
+
+    await this.loadDeviceTypes(); // reload patterns
+    await this.loadRepairs(); // reload groupings
     return true;
   }
 }

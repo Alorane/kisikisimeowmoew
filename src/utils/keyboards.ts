@@ -2,7 +2,7 @@ import { InlineKeyboard } from "grammy";
 import { chunk } from "./bot";
 import { repairsService } from "../services/repairs";
 
-export function deviceTypesKeyboard() {
+export function deviceTypesKeyboard(admin = false) {
   const deviceTypes = repairsService.getDeviceTypes();
   const keyboard = new InlineKeyboard();
   const rows = chunk([...deviceTypes], 2);
@@ -12,10 +12,13 @@ export function deviceTypesKeyboard() {
     }
     keyboard.row();
   }
+  if (admin) {
+    keyboard.text("➕ Добавить тип", "add_device_type").row();
+  }
   return keyboard;
 }
 
-export function modelsKeyboard(deviceType: string, page = 0) {
+export function modelsKeyboard(deviceType: string, page = 0, admin = false) {
   console.log(`⌨️ Creating keyboard for ${deviceType}, page ${page}`);
   const all = repairsService.getModelsForType(deviceType);
   const perPage = 12;
@@ -48,6 +51,9 @@ export function modelsKeyboard(deviceType: string, page = 0) {
       .row();
   }
 
+  if (admin) {
+    keyboard.text("➕ Добавить модель", `add_model:${deviceType}`).row();
+  }
   keyboard.text("🔙 Назад", "back_types");
 
   return keyboard;

@@ -7,10 +7,15 @@ import { getDeviceType } from "../services/repairs";
 import {
   sendMessage,
   replaceRepairMessage,
+  sendKeyboardMessage,
   fmtPrice,
   normalizePhoneInput,
 } from "../utils/bot";
-import { deviceTypesKeyboard, issuesKeyboard } from "../utils/keyboards";
+import {
+  deviceTypesKeyboard,
+  modelsKeyboard,
+  issuesKeyboard,
+} from "../utils/keyboards";
 import { buildIssueResponse } from "../utils/responses";
 
 interface AdminUtils {
@@ -34,7 +39,7 @@ export function registerTextHandler(
       const { mode, model, issue, stage } = editor;
       const repairs = repairsService.getRepairs();
 
-      if (mode === "price" && issue) {
+      if (mode === "price" && model && issue) {
         const num = Number(String(text).replace(/[^\d.]/g, ""));
         if (!Number.isFinite(num) || num <= 0) {
           return ctx.reply(
@@ -58,7 +63,7 @@ export function registerTextHandler(
         return;
       }
 
-      if (mode === "desc" && issue) {
+      if (mode === "desc" && model && issue) {
         const saved = await repairsService.updateDescription(
           model,
           issue,
@@ -79,7 +84,7 @@ export function registerTextHandler(
         return;
       }
 
-      if (mode === "waranty" && issue) {
+      if (mode === "waranty" && model && issue) {
         const waranty = text.trim() || null;
         const saved = await repairsService.updateWaranty(model, issue, waranty);
         if (saved) {
@@ -97,7 +102,7 @@ export function registerTextHandler(
         return;
       }
 
-      if (mode === "work_time" && issue) {
+      if (mode === "work_time" && model && issue) {
         const workTime = text.trim() || null;
         const saved = await repairsService.updateWorkTime(
           model,
@@ -119,7 +124,7 @@ export function registerTextHandler(
         return;
       }
 
-      if (mode === "delete_issue" && issue) {
+      if (mode === "delete_issue" && model && issue) {
         if (text.toLowerCase() === "да") {
           const saved = await repairsService.deleteRepair(model, issue);
           if (saved) {
@@ -127,9 +132,13 @@ export function registerTextHandler(
             // go to issues list
             const repairs = repairsService.getRepairs();
             ctx.session.issues = Object.keys(repairs[model] || {});
-            await ctx.reply(`📱 Модель: ${model}\nВыбери неисправность:`, {
-              reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
-            });
+            await sendKeyboardMessage(
+              ctx,
+              `📱 Модель: ${model}\nВыбери неисправность:`,
+              {
+                reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+              },
+            );
           } else {
             ctx.reply("Не удалось удалить. Проверь логи.");
           }
@@ -140,7 +149,116 @@ export function registerTextHandler(
         return;
       }
 
-      if (mode === "add_issue") {
+      if (mode === "add_device_type") {
+        if (stage === "name") {
+          if (!text.trim()) {
+            return ctx.reply(
+              "Название типа не может быть пустым. Попробуй ещё раз.",
+            );
+          }
+          editor.deviceTypeName = text;
+          editor.stage = "pattern";
+          ctx.session.adminEdit = editor;
+          return ctx.reply(
+            `Название: "${text}". Теперь введи регулярное выражение для распознавания устройств этого типа (например: "iphone" или "ipad|apple.*tablet").`,
+          );
+        }
+
+        if (stage === "pattern") {
+          if (!text.trim()) {
+            return ctx.reply("Паттерн не может быть пустым. Попробуй ещё раз.");
+          }
+          try {
+            // Test if pattern is valid
+            new RegExp(text, "i");
+          } catch {
+            return ctx.reply(
+              "Неверный формат регулярного выражения. Попробуй ещё раз.",
+            );
+          }
+
+          editor.pattern = text;
+          editor.stage = "sort_order";
+          ctx.session.adminEdit = editor;
+          return ctx.reply(
+            `Паттерн: "${text}". Теперь введи порядок сортировки (число, чем меньше - тем выше в списке, например: 1, 2, 3...).`,
+          );
+        }
+
+        if (stage === "sort_order") {
+          const sortOrder = Number(text.trim());
+          if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+            return ctx.reply(
+              "Порядок сортировки должен быть целым положительным числом. Попробуй ещё раз.",
+            );
+          }
+
+          const deviceTypeName = editor.deviceTypeName;
+          const pattern = editor.pattern;
+
+          if (!deviceTypeName || !pattern) {
+            ctx.session.adminEdit = undefined;
+            return ctx.reply("Ошибка: данные потерялись. Попробуй заново.");
+          }
+
+          const saved = await repairsService.addDeviceType({
+            name: deviceTypeName,
+            pattern: pattern,
+            sort_order: sortOrder,
+          });
+
+          if (saved) {
+            await ctx.reply(`Тип устройства "${deviceTypeName}" добавлен!`);
+            // Show updated device types list
+            await sendKeyboardMessage(ctx, "Выбери тип устройства:", {
+              reply_markup: deviceTypesKeyboard(isAdminMode(ctx)),
+            });
+          } else {
+            ctx.reply("Не удалось добавить тип устройства. Проверь логи.");
+          }
+          ctx.session.adminEdit = undefined;
+          return;
+        }
+      }
+
+      if (mode === "add_model" && stage === "name") {
+        if (!text.trim()) {
+          return ctx.reply(
+            "Название модели не может быть пустым. Попробуй ещё раз.",
+          );
+        }
+        const deviceType = editor.deviceType;
+        if (!deviceType) {
+          ctx.session.adminEdit = undefined;
+          return ctx.reply(
+            "Ошибка: тип устройства не найден. Попробуй заново.",
+          );
+        }
+
+        // Add a dummy repair to create the model (it will be removed after)
+        const tempRepair = await repairsService.addRepair({
+          device: text,
+          title: "Временная работа",
+          price: 100,
+          desc: "Временная запись для создания модели",
+        });
+
+        if (tempRepair) {
+          // Now delete the temporary repair
+          await repairsService.deleteRepair(text, "Временная работа");
+          await ctx.reply(`Модель "${text}" добавлена к типу "${deviceType}".`);
+          // Show updated models list
+          await sendKeyboardMessage(ctx, `Выбери модель ${deviceType}:`, {
+            reply_markup: modelsKeyboard(deviceType, 0, isAdminMode(ctx)),
+          });
+        } else {
+          ctx.reply("Не удалось добавить модель. Проверь логи.");
+        }
+        ctx.session.adminEdit = undefined;
+        return;
+      }
+
+      if (mode === "add_issue" && model) {
         if (stage === "title") {
           if (!text)
             return ctx.reply(
@@ -194,7 +312,17 @@ export function registerTextHandler(
             work_time: text.trim() || undefined,
           });
           if (saved) {
-            ctx.reply(`Работа «${title}» добавлена к ${model}.`);
+            await ctx.reply(`Работа «${title}» добавлена к ${model}.`);
+            // Show updated issues list
+            const repairs = repairsService.getRepairs();
+            ctx.session.issues = Object.keys(repairs[model] || {});
+            await sendKeyboardMessage(
+              ctx,
+              `📱 Модель: ${model}\nВыбери неисправность:`,
+              {
+                reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+              },
+            );
           } else {
             ctx.reply("Не удалось сохранить изменения. Проверь логи.");
           }
@@ -212,9 +340,13 @@ export function registerTextHandler(
         ctx.session.deviceType = type;
         ctx.session.model = text;
         ctx.session.issues = Object.keys(repairs[text]);
-        return ctx.reply(`📱 Модель: ${text}\nВыбери неисправность:`, {
-          reply_markup: issuesKeyboard(text, isAdminMode(ctx)),
-        });
+        return sendKeyboardMessage(
+          ctx,
+          `📱 Модель: ${text}\nВыбери неисправность:`,
+          {
+            reply_markup: issuesKeyboard(text, isAdminMode(ctx)),
+          },
+        );
       }
     }
 
@@ -225,20 +357,15 @@ export function registerTextHandler(
       ctx.session.step = "phone";
       return sendMessage(
         ctx,
-        "Укажи номер телефона: 10 цифр без 8, например 9000000000.",
+        "Укажи номер телефона в любом формате: +7 (918) 123-45-67, 89181234567, +79181234567 и т.д.",
       );
     }
 
     if (step === "phone") {
       const normalized = normalizePhoneInput(text);
       if (!normalized.ok) {
-        if (normalized.reason === "startsWith8") {
-          return ctx.reply(
-            "Вводи номер без 8 в начале. Просто 10 цифр, например 9000000000.",
-          );
-        }
         return ctx.reply(
-          "Номер не похож на телефон. Нужны 10 цифр, например 9000000000.",
+          "Номер телефона введён некорректно. Укажи номер в формате: +7 (918) 123-45-67, 89181234567 или +79181234567.",
         );
       }
 
@@ -304,8 +431,8 @@ export function registerTextHandler(
     }
 
     if (!step) {
-      return ctx.reply("Выбери тип устройства из меню ниже:", {
-        reply_markup: deviceTypesKeyboard(),
+      return sendKeyboardMessage(ctx, "Выбери тип устройства из меню ниже:", {
+        reply_markup: deviceTypesKeyboard(adminUtils.isAdminMode(ctx)),
       });
     }
 

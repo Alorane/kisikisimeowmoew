@@ -1,5 +1,5 @@
 import { repairsService } from "../services/repairs";
-import { fmtPrice, buildDescription } from "./bot";
+import { fmtPrice } from "./bot";
 import { orderKeyboard } from "./keyboards";
 
 export function buildIssueResponse(
@@ -11,7 +11,6 @@ export function buildIssueResponse(
   const item = repairs[model]?.[issue];
   if (!item) return null;
   const price = fmtPrice(item.price);
-  const desc = buildDescription(issue, item.desc);
   const waranty = item.waranty ?? null;
   const workTime = item.work_time ?? null;
   const lines = [
@@ -20,7 +19,7 @@ export function buildIssueResponse(
     `💰 ${price}`,
     `🛡️ Гарантия: ${(waranty && waranty.trim()) || "—"}`,
     `⏱️ Время: ${(workTime && workTime.trim()) || "—"}`,
-    `ℹ️ ${desc}`,
+    `ℹ️ ${item.desc}`,
   ];
   const text = lines.join("\n");
   return { text, keyboard: orderKeyboard(admin) };

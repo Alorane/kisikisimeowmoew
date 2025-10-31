@@ -9,53 +9,6 @@ export const fmtPrice = (n: number | string | null | undefined) => {
   return `${num.toLocaleString("ru-RU")} ₽`;
 };
 
-export const descEnhancers = [
-  {
-    match: /экран/i,
-    extra:
-      "Каждый дисплей проходит проверку на точность цветов и яркость, тачскрин тестируем в 20 точках.",
-  },
-  {
-    match: /аккумулятор/i,
-    extra:
-      "Перед выдачей делаем цикл быстрой и медленной зарядки, чтобы убедиться в стабильности питания.",
-  },
-  {
-    match: /корпус/i,
-    extra:
-      "Переносим все кнопки и антенны аккуратно, чтобы сохранить заводскую геометрию и прочность.",
-  },
-  {
-    match: /камера/i,
-    extra:
-      "Используем антистатическую зону, чтобы не допустить пыли и засветов на новом модуле.",
-  },
-  {
-    match: /порта зарядки|заряд/i,
-    extra:
-      "Также чистим плату от окислов и меняем мелкие элементы, если они влияют на стабильность зарядки.",
-  },
-  {
-    match: /стекла/i,
-    extra:
-      "Стекло клеим в прессе под вакуумом, чтобы не было пыли и равномерно лег поляризатор.",
-  },
-];
-
-export const buildDescription = (issue: string, base = "") => {
-  const extras = descEnhancers
-    .filter(({ match }) => match.test(issue))
-    .map(({ extra }) => extra);
-  if (!extras.length)
-    return (
-      base || "Сервисная работа. Оригинальные или проверенные комплектующие."
-    );
-  const unique = Array.from(new Set(extras));
-  return `${
-    base || "Сервисная работа. Оригинальные или проверенные комплектующие."
-  }\n\n${unique.join("\n")}`;
-};
-
 export const chunk = <T>(arr: T[], size: number): T[][] => {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
@@ -65,12 +18,25 @@ export const chunk = <T>(arr: T[], size: number): T[][] => {
 export const normalizePhoneInput = (raw: string) => {
   const digits = String(raw).replace(/\D/g, "");
   if (!digits) return { ok: false, reason: "empty" };
-  if (digits.startsWith("8")) return { ok: false, reason: "startsWith8" };
-  if (digits.length === 10) return { ok: true, value: `+7${digits}` };
-  if (digits.length === 11 && digits.startsWith("7")) {
-    return { ok: true, value: `+7${digits.slice(1)}` };
+
+  // Handle different Russian phone number formats
+  if (digits.length === 10) {
+    // 10 digits - add +7 prefix
+    return { ok: true, value: `+7${digits}` };
   }
-  return { ok: false, reason: "length" };
+
+  if (digits.length === 11) {
+    if (digits.startsWith("7")) {
+      // 11 digits starting with 7 - add + prefix
+      return { ok: true, value: `+${digits}` };
+    }
+    if (digits.startsWith("8")) {
+      // 11 digits starting with 8 - replace 8 with +7
+      return { ok: true, value: `+7${digits.slice(1)}` };
+    }
+  }
+
+  return { ok: false, reason: "invalid_format" };
 };
 
 export async function sendMessage(
@@ -109,6 +75,42 @@ export async function replaceRepairMessage(
 
   // Отправляем новое сообщение
   await sendRepairMessage(ctx, text, extra);
+}
+
+// Функция для отправки сообщений с клавиатурой (удаляет предыдущее сообщение с клавиатурой)
+export async function sendKeyboardMessage(
+  ctx: BotContext,
+  text: string,
+  extra?: Parameters<typeof ctx.reply>[1],
+) {
+  const keyboardMessageId = ctx.session.keyboardMessageId;
+  console.log(
+    `🔄 sendKeyboardMessage: current keyboardMessageId=${keyboardMessageId}, chat=${ctx.chat?.id}`,
+  );
+
+  if (keyboardMessageId) {
+    try {
+      console.log(
+        `🗑️ Deleting previous keyboard message: ${keyboardMessageId}`,
+      );
+      await ctx.api.deleteMessage(ctx.chat!.id, keyboardMessageId);
+      console.log(
+        `✅ Successfully deleted keyboard message: ${keyboardMessageId}`,
+      );
+    } catch (error) {
+      console.warn(
+        `❌ Failed to delete keyboard message ${keyboardMessageId}:`,
+        error,
+      );
+    }
+  }
+
+  // Отправляем новое сообщение и сохраняем его ID
+  console.log(`📤 Sending new keyboard message`);
+  const message = await ctx.reply(text, extra);
+  ctx.session.keyboardMessageId = message.message_id;
+  console.log(`💾 Saved new keyboardMessageId: ${message.message_id}`);
+  return message;
 }
 
 // Функции для работы с админами
