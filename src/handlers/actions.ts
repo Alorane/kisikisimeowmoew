@@ -85,7 +85,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
 
     try {
       console.log(`📝 Editing message for model selection: ${model}`);
-      await ctx.editMessageText(`📱 Модель: ${model}\nВыбери неисправность:`, {
+      await ctx.editMessageText(`📱 Модель: ${model}\n\nВыбери услугу:`, {
         reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
       });
       console.log(`✅ Successfully edited message for model: ${model}`);
@@ -94,7 +94,7 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
         `❌ Failed to edit message for model ${model}, trying reply:`,
         error,
       );
-      await ctx.reply(`📱 Модель: ${model}\nВыбери неисправность:`, {
+      await ctx.reply(`📱 Модель: ${model}\n\nВыбери услугу:`, {
         reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
       });
       console.log(`✅ Successfully replied for model: ${model}`);
@@ -189,17 +189,13 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     const model = ctx.session?.model;
     if (!model) return ctx.answerCallbackQuery();
     try {
-      await ctx.editMessageText(`📱 Модель: ${model}\nВыбери неисправность:`, {
+      await ctx.editMessageText(`📱 Модель: ${model}\n\nВыбери услугу:`, {
         reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
       });
     } catch {
-      await sendKeyboardMessage(
-        ctx,
-        `📱 Модель: ${model}\nВыбери неисправность:`,
-        {
-          reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
-        },
-      );
+      await sendKeyboardMessage(ctx, `📱 Модель: ${model}\n\nВыбери услугу:`, {
+        reply_markup: issuesKeyboard(model, isAdminMode(ctx)),
+      });
     }
     return ctx.answerCallbackQuery();
   });

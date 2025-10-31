@@ -137,7 +137,7 @@ export function registerTextHandler(
             );
             await sendKeyboardMessage(
               ctx,
-              `📱 Модель: ${ctx.session.model}\nВыбери неисправность:`,
+              `📱 Модель: ${ctx.session.model}\n\nВыбери услугу:`,
               {
                 reply_markup: issuesKeyboard(
                   ctx.session.model || "",
@@ -311,7 +311,7 @@ export function registerTextHandler(
             );
             await sendKeyboardMessage(
               ctx,
-              `📱 Модель: ${ctx.session.model}\nВыбери неисправность:`,
+              `📱 Модель: ${ctx.session.model}\n\nВыбери услугу:`,
               {
                 reply_markup: issuesKeyboard(
                   ctx.session.model || "",
@@ -337,13 +337,9 @@ export function registerTextHandler(
       ctx.session.issues = Object.keys(
         repairsService.getRepairsForDevice(device.id) || {},
       );
-      return sendKeyboardMessage(
-        ctx,
-        `📱 Модель: ${text}\nВыбери неисправность:`,
-        {
-          reply_markup: issuesKeyboard(text, isAdminMode(ctx)),
-        },
-      );
+      return sendKeyboardMessage(ctx, `📱 Модель: ${text}\n\nВыбери услугу:`, {
+        reply_markup: issuesKeyboard(text, isAdminMode(ctx)),
+      });
     }
 
     const step = ctx.session?.step;
@@ -390,12 +386,12 @@ export function registerTextHandler(
       await sendMessage(
         ctx,
         `✅ Заявка оформлена!\n\n` +
-          `📄 ID: ${order.id}\n` +
-          `👤 ${name}\n` +
-          `📞 ${phone}\n` +
-          `📱 ${model}\n` +
-          `⚙️ ${issue}\n` +
-          `💰 ${priceFmt}\n\n` +
+          `📄 Номер заявки: ${order.id}\n` +
+          `👤 Имя: ${name}\n` +
+          `📞 Телефон: ${phone}\n` +
+          `📱 Модель: ${model}\n` +
+          `⚙️ Услуга: ${issue}\n` +
+          `💰 Цена: ${priceFmt}\n\n` +
           `Мы свяжемся с тобой в ближайшее время.`,
       );
 
@@ -405,12 +401,12 @@ export function registerTextHandler(
           await bot.api.sendMessage(
             chatId,
             `🔔 Новая заявка\n\n` +
-              `📄 ID: ${order.id}\n` +
-              `👤 ${name}\n` +
-              `📞 ${phone}\n` +
-              `📱 ${model}\n` +
-              `⚙️ ${issue}\n` +
-              `💰 ${priceFmt}`,
+              `📄 Номер заявки: ${order.id}\n` +
+              `👤 Имя: ${name}\n` +
+              `📞 Телефон: ${phone}\n` +
+              `📱 Модель: ${model}\n` +
+              `⚙️ Услуга: ${issue}\n` +
+              `💰 Цена: ${priceFmt}`,
           );
         } catch (error: unknown) {
           const message =

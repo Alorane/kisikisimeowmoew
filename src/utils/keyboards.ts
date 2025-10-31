@@ -86,7 +86,7 @@ export function orderKeyboard(admin = false) {
     keyboard.text("🗑️ Удалить", "admin_delete_issue").row();
   }
   keyboard.text("📝 Оформить заявку", "order").row();
-  keyboard.text("🔙 К неисправностям", "back_issues");
+  keyboard.text("🔙 К услугам", "back_issues");
 
   return keyboard;
 }

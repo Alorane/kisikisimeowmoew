@@ -170,13 +170,9 @@ export function registerCommands(
       }
     }
     if (deviceId && model) {
-      await sendKeyboardMessage(
-        ctx,
-        `📱 Модель: ${model}\nВыбери неисправность:`,
-        {
-          reply_markup: issuesKeyboard(model, true),
-        },
-      );
+      await sendKeyboardMessage(ctx, `📱 Модель: ${model}\nВыбери услугу:`, {
+        reply_markup: issuesKeyboard(model, true),
+      });
       return;
     }
     await sendKeyboardMessage(ctx, "Выбери тип устройства:", {

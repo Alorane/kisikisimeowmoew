@@ -18,13 +18,13 @@ export function buildIssueResponse(
   const warranty = item.warranty ?? null;
   const workTime = item.work_time ?? null;
   const lines = [
-    `📱 ${model}`,
-    `⚙️ ${issue}`,
-    `💰 ${price}`,
+    `📱 Модель: ${model}`,
+    `⚙️ Услуга: ${issue}`,
+    `💰 Цена: ${price}`,
     `🛡️ Гарантия: ${(warranty && warranty.trim()) || "—"}`,
     `⏱️ Время: ${(workTime && workTime.trim()) || "—"}`,
     `ℹ️ ${item.description || "Описание не указано"}`,
   ];
-  const text = lines.join("\n");
+  const text = lines.join("\n\n");
   return { text, keyboard: orderKeyboard(admin) };
 }
