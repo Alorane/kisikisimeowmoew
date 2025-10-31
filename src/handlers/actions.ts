@@ -245,8 +245,8 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
     const model = ctx.match[1];
-    const deviceRepairs = repairsService.getRepairsForModel(model);
-    if (!deviceRepairs) {
+    const device = repairsService.getDevices().find((d) => d.name === model);
+    if (!device) {
       return ctx.answerCallbackQuery({
         text: "Модель не найдена",
         show_alert: true,

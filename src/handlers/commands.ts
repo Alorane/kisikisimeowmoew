@@ -72,12 +72,43 @@ export function registerCommands(
       setAdminMode(ctx, false);
       ctx.session.adminEdit = undefined;
 
+      // Delete previous keyboard messages when exiting admin mode
+      const chatId = ctx.chat?.id;
+      if (chatId) {
+        const messageIds = [
+          ctx.session.keyboardMessageId,
+          ctx.session.repairMessageId,
+          ctx.session.lastMessageId,
+        ].filter(Boolean) as number[];
+
+        for (const messageId of messageIds) {
+          try {
+            await ctx.api.deleteMessage(chatId, messageId);
+            console.log(`🗑️ Deleted old message: ${messageId}`);
+          } catch (error) {
+            // Ignore errors if message doesn't exist or can't be deleted
+            console.warn(`⚠️ Could not delete message ${messageId}:`, error);
+          }
+        }
+      }
+
+      // Clear message IDs
+      ctx.session.keyboardMessageId = undefined;
+      ctx.session.repairMessageId = undefined;
+      ctx.session.lastMessageId = undefined;
+
+      // Clear current selection
+      ctx.session.deviceId = undefined;
+      ctx.session.model = undefined;
+      ctx.session.issues = undefined;
+      ctx.session.issue = undefined;
+
       // Reset to basic commands for this chat
       if (setCommandsForChat && ctx.chat?.id) {
         await setCommandsForChat(ctx.chat.id, false);
       }
 
-      return ctx.reply("Админ-режим выключен. Кнопки и команды скрыты.");
+      return ctx.reply("Админ-режим выключен. Старые клавиатуры удалены.");
     }
 
     const alreadyEnabled = isAdminMode(ctx);
@@ -87,6 +118,37 @@ export function registerCommands(
       return ctx.reply("Админ-режим уже включён.");
     }
 
+    // Delete previous keyboard messages to avoid confusion
+    const chatId = ctx.chat?.id;
+    if (chatId) {
+      const messageIds = [
+        ctx.session.keyboardMessageId,
+        ctx.session.repairMessageId,
+        ctx.session.lastMessageId,
+      ].filter(Boolean) as number[];
+
+      for (const messageId of messageIds) {
+        try {
+          await ctx.api.deleteMessage(chatId, messageId);
+          console.log(`🗑️ Deleted old message: ${messageId}`);
+        } catch (error) {
+          // Ignore errors if message doesn't exist or can't be deleted
+          console.warn(`⚠️ Could not delete message ${messageId}:`, error);
+        }
+      }
+    }
+
+    // Clear message IDs to prevent conflicts
+    ctx.session.keyboardMessageId = undefined;
+    ctx.session.repairMessageId = undefined;
+    ctx.session.lastMessageId = undefined;
+
+    // Clear current selection to force fresh start
+    ctx.session.deviceId = undefined;
+    ctx.session.model = undefined;
+    ctx.session.issues = undefined;
+    ctx.session.issue = undefined;
+
     // Set admin commands for this chat
     if (setCommandsForChat && ctx.chat?.id) {
       await setCommandsForChat(ctx.chat.id, true);
@@ -94,7 +156,7 @@ export function registerCommands(
 
     await sendMessage(
       ctx,
-      `Админ-режим включён (ID: ${ctx.from?.id || "unknown"}). Повтори выбор модели и неисправности, чтобы увидеть кнопки редактирования.`,
+      `Админ-режим включён (ID: ${ctx.from?.id || "unknown"}). Старые клавиатуры удалены - выбери тип устройства заново.`,
     );
 
     const { deviceId, model, issue } = ctx.session;

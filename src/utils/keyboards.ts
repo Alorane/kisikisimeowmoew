@@ -3,7 +3,7 @@ import { chunk } from "./bot";
 import { repairsService } from "../services/repairs";
 
 export function deviceTypesKeyboard(admin = false) {
-  const deviceTypes = repairsService.getDeviceTypes();
+  const deviceTypes = repairsService.getDeviceTypes(admin);
   const keyboard = new InlineKeyboard();
   const rows = chunk([...deviceTypes], 2);
   for (const row of rows) {
@@ -25,10 +25,6 @@ export function modelsKeyboard(deviceType: string, page = 0, admin = false) {
   const pages = Math.max(1, Math.ceil(all.length / perPage));
   const p = Math.max(0, Math.min(page, pages - 1));
   const slice = all.slice(p * perPage, p * perPage + perPage);
-
-  console.log(
-    `📄 Page ${p + 1}/${pages}, showing ${slice.length} models: ${slice.join(", ")}`,
-  );
 
   const keyboard = new InlineKeyboard();
   const rows = chunk(slice, 2);

@@ -188,15 +188,19 @@ class RepairsService {
     return this.models;
   }
 
-  getDeviceTypes(): Readonly<string[]> {
+  getDeviceTypes(admin = false): Readonly<string[]> {
+    if (admin) {
+      // For admins, show all device types
+      return this.deviceTypeRecords
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((dt) => dt.name);
+    }
+    // For regular users, show only types that have devices
     return this.deviceTypes;
   }
 
   getModelsForType(type: string): Readonly<string[]> {
     const models = this.modelsGrouped[type] || [];
-    console.log(
-      `🔍 getModelsForType(${type}) -> ${models.length} models: ${models.join(", ")}`,
-    );
     return models;
   }
 
