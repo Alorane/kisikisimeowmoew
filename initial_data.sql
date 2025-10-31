@@ -1,0 +1,116 @@
+-- Initial data for the new database schema
+-- Run this after creating the schema
+
+-- Insert device types
+INSERT INTO device_types (name, sort_order) VALUES
+('iPhone', 1),
+('iPad', 2),
+('Apple Watch', 3),
+('MacBook', 4),
+('Другое', 999);
+
+-- Insert devices (iPhone models)
+INSERT INTO devices (name, device_type_id) VALUES
+('iPhone 5s', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 6', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 6 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 6s', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 6s Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 7', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 7 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 8', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 8 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone X', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone XR', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone XS', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone XS Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 11', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 11 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 11 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 12', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 12 mini', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 12 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 12 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 13', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 13 mini', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 13 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 13 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 14', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 14 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 14 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 14 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 15', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 15 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 15 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 15 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 16', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 16 Plus', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 16 Pro', (SELECT id FROM device_types WHERE name = 'iPhone')),
+('iPhone 16 Pro Max', (SELECT id FROM device_types WHERE name = 'iPhone'));
+
+-- Insert devices (iPad models)
+INSERT INTO devices (name, device_type_id) VALUES
+('iPad 2', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad 3', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad 4', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air 2', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini 2', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini 3', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini 4', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro 9.7"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro 10.5"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro 11"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (5th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (6th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (7th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (8th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (9th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad (10th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air (3rd gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air (4th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air (5th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Air (6th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini (5th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini (6th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad mini (7th gen)', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (1st gen) 9.7"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (1st gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (2nd gen) 10.5"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (2nd gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (3rd gen) 11"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (3rd gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (4th gen) 11"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (4th gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (5th gen) 11"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (5th gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (6th gen) 11"', (SELECT id FROM device_types WHERE name = 'iPad')),
+('iPad Pro (6th gen) 12.9"', (SELECT id FROM device_types WHERE name = 'iPad'));
+
+-- Insert devices (Apple Watch models)
+INSERT INTO devices (name, device_type_id) VALUES
+('Apple Watch Series 1', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 2', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 3', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 4', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 5', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 6', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 7', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 8', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Series 9', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Ultra', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch Ultra 2', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch SE', (SELECT id FROM device_types WHERE name = 'Apple Watch')),
+('Apple Watch SE (2nd gen)', (SELECT id FROM device_types WHERE name = 'Apple Watch'));
+
+-- Insert devices (MacBook models)
+INSERT INTO devices (name, device_type_id) VALUES
+('MacBook Air 11"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook Air 13"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook Pro 13"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook Pro 15"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook Pro 16"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook Pro 14"', (SELECT id FROM device_types WHERE name = 'MacBook')),
+('MacBook (Retina, 12-inch)', (SELECT id FROM device_types WHERE name = 'MacBook'));

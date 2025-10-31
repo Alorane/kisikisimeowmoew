@@ -97,10 +97,9 @@ export function registerCommands(
       `Админ-режим включён (ID: ${ctx.from?.id || "unknown"}). Повтори выбор модели и неисправности, чтобы увидеть кнопки редактирования.`,
     );
 
-    const { model, issue } = ctx.session;
-    const repairs = repairsService.getRepairs();
-    if (model && issue) {
-      const payload = buildIssueResponse(model, issue, true);
+    const { deviceId, model, issue } = ctx.session;
+    if (deviceId && issue) {
+      const payload = buildIssueResponse(deviceId, issue, true);
       if (payload) {
         await sendRepairMessage(ctx, payload.text, {
           reply_markup: payload.keyboard,
@@ -108,7 +107,7 @@ export function registerCommands(
         return;
       }
     }
-    if (model && repairs[model]) {
+    if (deviceId && model) {
       await sendKeyboardMessage(
         ctx,
         `📱 Модель: ${model}\nВыбери неисправность:`,

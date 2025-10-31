@@ -60,8 +60,8 @@ export function modelsKeyboard(deviceType: string, page = 0, admin = false) {
 }
 
 export function issuesKeyboard(model: string, admin = false) {
-  const repairs = repairsService.getRepairs();
-  const entries = Object.keys(repairs[model] || {});
+  const deviceRepairs = repairsService.getRepairsForModel(model);
+  const entries = Object.keys(deviceRepairs || {});
   const keyboard = new InlineKeyboard();
 
   for (let i = 0; i < entries.length; i++) {

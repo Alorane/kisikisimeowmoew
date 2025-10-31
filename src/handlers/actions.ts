@@ -63,11 +63,24 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     const model = ctx.match[2];
     console.log(`📱 User selected model: ${model} (type: ${deviceType})`);
 
-    ctx.session.model = model;
-    ctx.session.issues = Object.keys(repairsService.getRepairs()[model] || {});
+    // Find device by name
+    const device = repairsService.getDevices().find((d) => d.name === model);
+    if (!device) {
+      console.error(`❌ Device not found: ${model}`);
+      return ctx.answerCallbackQuery({
+        text: "Устройство не найдено",
+        show_alert: true,
+      });
+    }
+
+    ctx.session.deviceId = device.id;
+    ctx.session.model = model; // keep for backward compatibility
+    ctx.session.issues = Object.keys(
+      repairsService.getRepairsForDevice(device.id) || {},
+    );
 
     console.log(
-      `🔧 Available issues for ${model}: ${ctx.session.issues.join(", ")}`,
+      `🔧 Available issues for ${model} (id: ${device.id}): ${ctx.session.issues.join(", ")}`,
     );
 
     try {
@@ -139,7 +152,15 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
       });
     }
     const issue = issues[idx];
-    const payload = buildIssueResponse(model, issue, isAdminMode(ctx));
+    const deviceId = ctx.session.deviceId;
+    if (!deviceId) {
+      return ctx.answerCallbackQuery({
+        text: "Устройство не найдено",
+        show_alert: true,
+      });
+    }
+
+    const payload = buildIssueResponse(deviceId, issue, isAdminMode(ctx));
     if (!payload) {
       return ctx.answerCallbackQuery({
         text: "Не удалось загрузить работу",
@@ -148,8 +169,8 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     }
 
     ctx.session.issue = issue;
-    const repairs = repairsService.getRepairs();
-    ctx.session.price = repairs[model][issue].price;
+    const deviceRepairs = repairsService.getRepairsForDevice(deviceId);
+    ctx.session.price = deviceRepairs?.[issue]?.price;
 
     try {
       await ctx.editMessageText(payload.text, {
@@ -224,14 +245,19 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
     const model = ctx.match[1];
-    const repairs = repairsService.getRepairs();
-    if (!repairs[model]) {
+    const deviceRepairs = repairsService.getRepairsForModel(model);
+    if (!deviceRepairs) {
       return ctx.answerCallbackQuery({
         text: "Модель не найдена",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "add_issue", model, stage: "title" };
+    ctx.session.adminEdit = {
+      mode: "add_issue",
+      deviceId: ctx.session.deviceId,
+      model,
+      stage: "title",
+    };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(
@@ -244,14 +270,14 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     if (!isAdminMode(ctx)) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
-    const { model, issue } = ctx.session;
-    if (!model || !issue) {
+    const { deviceId, model, issue } = ctx.session;
+    if (!deviceId || !issue) {
       return ctx.answerCallbackQuery({
         text: "Сначала выбери работу",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "price", model, issue };
+    ctx.session.adminEdit = { mode: "price", deviceId, model, issue };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(ctx, `Введи новую цену для «${issue}» в ₽ (число).`);
@@ -261,14 +287,14 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     if (!isAdminMode(ctx)) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
-    const { model, issue } = ctx.session;
-    if (!model || !issue) {
+    const { deviceId, model, issue } = ctx.session;
+    if (!deviceId || !issue) {
       return ctx.answerCallbackQuery({
         text: "Сначала выбери работу",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "desc", model, issue };
+    ctx.session.adminEdit = { mode: "desc", deviceId, model, issue };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(ctx, `Введи новое описание для «${issue}».`);
@@ -278,14 +304,14 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     if (!isAdminMode(ctx)) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
-    const { model, issue } = ctx.session;
-    if (!model || !issue) {
+    const { deviceId, model, issue } = ctx.session;
+    if (!deviceId || !issue) {
       return ctx.answerCallbackQuery({
         text: "Сначала выбери работу",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "waranty", model, issue };
+    ctx.session.adminEdit = { mode: "warranty", deviceId, model, issue };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(
@@ -298,14 +324,14 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     if (!isAdminMode(ctx)) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
-    const { model, issue } = ctx.session;
-    if (!model || !issue) {
+    const { deviceId, model, issue } = ctx.session;
+    if (!deviceId || !issue) {
       return ctx.answerCallbackQuery({
         text: "Сначала выбери работу",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "work_time", model, issue };
+    ctx.session.adminEdit = { mode: "work_time", deviceId, model, issue };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(
@@ -318,14 +344,14 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
     if (!isAdminMode(ctx)) {
       return ctx.answerCallbackQuery({ text: "Нет доступа", show_alert: true });
     }
-    const { model, issue } = ctx.session;
-    if (!model || !issue) {
+    const { deviceId, model, issue } = ctx.session;
+    if (!deviceId || !issue) {
       return ctx.answerCallbackQuery({
         text: "Сначала выбери работу",
         show_alert: true,
       });
     }
-    ctx.session.adminEdit = { mode: "delete_issue", model, issue };
+    ctx.session.adminEdit = { mode: "delete_issue", deviceId, model, issue };
     ctx.session.step = undefined;
     await ctx.answerCallbackQuery();
     await sendMessage(

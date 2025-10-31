@@ -1,25 +1,29 @@
-import { repairsService } from "../services/repairs";
+import { repairsService, getDeviceById } from "../services/repairs";
 import { fmtPrice } from "./bot";
 import { orderKeyboard } from "./keyboards";
 
 export function buildIssueResponse(
-  model: string,
+  deviceId: number,
   issue: string,
   admin = false,
 ) {
   const repairs = repairsService.getRepairs();
-  const item = repairs[model]?.[issue];
+  const item = repairs[deviceId]?.[issue];
   if (!item) return null;
+
+  const device = getDeviceById(deviceId);
+  const model = device?.name || `Device #${deviceId}`;
+
   const price = fmtPrice(item.price);
-  const waranty = item.waranty ?? null;
+  const warranty = item.warranty ?? null;
   const workTime = item.work_time ?? null;
   const lines = [
     `📱 ${model}`,
     `⚙️ ${issue}`,
     `💰 ${price}`,
-    `🛡️ Гарантия: ${(waranty && waranty.trim()) || "—"}`,
+    `🛡️ Гарантия: ${(warranty && warranty.trim()) || "—"}`,
     `⏱️ Время: ${(workTime && workTime.trim()) || "—"}`,
-    `ℹ️ ${item.desc}`,
+    `ℹ️ ${item.description || "Описание не указано"}`,
   ];
   const text = lines.join("\n");
   return { text, keyboard: orderKeyboard(admin) };

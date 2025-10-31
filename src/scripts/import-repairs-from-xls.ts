@@ -24,8 +24,16 @@ async function main() {
     const deviceName = await askQuestion(
       "Enter the device name (e.g., 'iPhone 14'): ",
     );
-    if (!deviceName) {
+    if (!deviceName.trim()) {
       console.error("❌ Device name is required.");
+      return;
+    }
+
+    const deviceTypeName = await askQuestion(
+      "Enter the device type (iPhone/iPad/MacBook/Apple Watch/Другое): ",
+    );
+    if (!deviceTypeName.trim()) {
+      console.error("❌ Device type is required.");
       return;
     }
 
@@ -41,48 +49,101 @@ async function main() {
       `\n⏳ Parsing XLS file and preparing data for '${deviceName}'...`,
     );
 
+    // First, ensure device type exists
+    let { data: deviceType } = await supabase
+      .from("device_types")
+      .select("id")
+      .eq("name", deviceTypeName)
+      .single();
+
+    if (!deviceType) {
+      console.log(`📝 Creating device type '${deviceTypeName}'...`);
+      const { data: newDeviceType, error: deviceTypeError } = await supabase
+        .from("device_types")
+        .insert({ name: deviceTypeName, sort_order: 99 })
+        .select("id")
+        .single();
+
+      if (deviceTypeError) {
+        console.error(
+          "❌ Error creating device type:",
+          deviceTypeError.message,
+        );
+        return;
+      }
+      deviceType = newDeviceType;
+    }
+
+    // Find or create device
+    let { data: device } = await supabase
+      .from("devices")
+      .select("id")
+      .eq("name", deviceName)
+      .single();
+
+    if (!device) {
+      console.log(`📱 Creating device '${deviceName}'...`);
+      const { data: newDevice, error: deviceError } = await supabase
+        .from("devices")
+        .insert({ name: deviceName, device_type_id: deviceType.id })
+        .select("id")
+        .single();
+
+      if (deviceError) {
+        console.error("❌ Error creating device:", deviceError.message);
+        return;
+      }
+      device = newDevice;
+    }
+
     const workbook = xlsx.readFile(xlsFilePath);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const jsonData =
       xlsx.utils.sheet_to_json<Record<string, unknown>>(worksheet);
 
-    const repairsToInsert: Omit<Repair, "id">[] = jsonData
-      .map((row) => {
-        const normalizedRow = Object.entries(row).reduce(
-          (acc, [key, value]) => {
-            acc[normalizeKey(key)] = value;
-            return acc;
-          },
-          {} as Record<string, unknown>,
-        );
-
-        const price = parseFloat(normalizedRow["Стандартная цена"] as string);
-        const title = normalizedRow["Наименование"];
-
-        if (!title || isNaN(price)) {
-          console.warn(
-            `⚠️ Skipping row due to missing title or invalid price: ${JSON.stringify(
-              row,
-            )}`,
+    const repairsToInsert: Omit<Repair, "id" | "created_at" | "updated_at">[] =
+      jsonData
+        .map((row) => {
+          const normalizedRow = Object.entries(row).reduce(
+            (acc, [key, value]) => {
+              acc[normalizeKey(key)] = value;
+              return acc;
+            },
+            {} as Record<string, unknown>,
           );
-          return null;
-        }
 
-        return {
-          device: deviceName,
-          title: String(title),
-          price: price,
-          desc: String(normalizedRow["Описание"] ?? ""),
-          waranty: normalizedRow["Гарантия"]
-            ? String(normalizedRow["Гарантия"])
-            : null,
-          work_time: normalizedRow["Длительность (минуты)"]
-            ? String(normalizedRow["Длительность (минуты)"])
-            : null,
-        };
-      })
-      .filter((item): item is Omit<Repair, "id"> => item !== null);
+          const price = parseFloat(normalizedRow["Стандартная цена"] as string);
+          const title = normalizedRow["Наименование"];
+
+          if (!title || isNaN(price)) {
+            console.warn(
+              `⚠️ Skipping row due to missing title or invalid price: ${JSON.stringify(
+                row,
+              )}`,
+            );
+            return null;
+          }
+
+          return {
+            device_id: device.id,
+            title: String(title),
+            price: price,
+            description: normalizedRow["Описание"]
+              ? String(normalizedRow["Описание"])
+              : null,
+            warranty: normalizedRow["Гарантия"]
+              ? String(normalizedRow["Гарантия"])
+              : null,
+            work_time: normalizedRow["Длительность (минуты)"]
+              ? String(normalizedRow["Длительность (минуты)"])
+              : null,
+          };
+        })
+        .filter(
+          (item): item is Omit<Repair, "id" | "created_at" | "updated_at"> =>
+            item !== null,
+        );
 
     if (repairsToInsert.length === 0) {
       console.error("❌ No valid repair data found in the file to import.");
@@ -95,7 +156,7 @@ async function main() {
     const { error: deleteError } = await supabase
       .from("repairs")
       .delete()
-      .match({ device: deviceName });
+      .eq("device_id", device.id);
 
     if (deleteError) {
       console.error(

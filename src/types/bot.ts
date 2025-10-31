@@ -1,7 +1,8 @@
 import { Context, SessionFlavor } from "grammy";
 
 export interface SessionData {
-  model?: string;
+  deviceId?: number;
+  model?: string; // backward compatibility
   issues?: string[];
   issue?: string;
   price?: number;
@@ -17,29 +18,30 @@ export interface SessionData {
       | "add_issue"
       | "price"
       | "desc"
-      | "waranty"
+      | "warranty"
       | "work_time"
       | "delete_issue"
       | "add_device_type"
+      | "add_device"
       | "add_model";
-    model?: string;
+    deviceId?: number;
+    model?: string; // backward compatibility
     deviceType?: string;
     deviceTypeName?: string;
-    pattern?: string;
     issue?: string;
     stage?:
       | "title"
       | "price"
       | "desc"
-      | "waranty"
+      | "warranty"
       | "work_time"
       | "name"
-      | "pattern"
-      | "sort_order";
+      | "sort_order"
+      | "device_type";
     title?: string;
     price?: number;
-    desc?: string;
-    waranty?: string;
+    description?: string;
+    warranty?: string;
     work_time?: string;
   };
 }
