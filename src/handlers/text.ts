@@ -4,8 +4,14 @@ import { repairsService } from "../services/repairs";
 import { ordersService } from "../services/orders";
 import { settingsService } from "../services/settings";
 import { getDeviceType } from "../services/repairs";
-import { sendMessage, fmtPrice, normalizePhoneInput } from "../utils/bot";
+import {
+  sendMessage,
+  replaceRepairMessage,
+  fmtPrice,
+  normalizePhoneInput,
+} from "../utils/bot";
 import { deviceTypesKeyboard, issuesKeyboard } from "../utils/keyboards";
+import { buildIssueResponse } from "../utils/responses";
 
 interface AdminUtils {
   isAdminMode: (ctx: BotContext) => boolean;
@@ -38,7 +44,13 @@ export function registerTextHandler(
         const price = Math.round(num);
         const saved = await repairsService.updatePrice(model, issue, price);
         if (saved) {
-          ctx.reply(`Цена для «${issue}» обновлена: ${fmtPrice(price)}.`);
+          await ctx.reply("Данные обновлены.");
+          const payload = buildIssueResponse(model, issue, isAdminMode(ctx));
+          if (payload) {
+            await replaceRepairMessage(ctx, payload.text, {
+              reply_markup: payload.keyboard,
+            });
+          }
         } else {
           ctx.reply("Не удалось сохранить изменения. Проверь логи.");
         }
@@ -53,7 +65,13 @@ export function registerTextHandler(
           text,
         );
         if (saved) {
-          ctx.reply(`Описание для «${issue}» обновлено.`);
+          await ctx.reply("Данные обновлены.");
+          const payload = buildIssueResponse(model, issue, isAdminMode(ctx));
+          if (payload) {
+            await replaceRepairMessage(ctx, payload.text, {
+              reply_markup: payload.keyboard,
+            });
+          }
         } else {
           ctx.reply("Не удалось сохранить изменения. Проверь логи.");
         }
@@ -65,7 +83,13 @@ export function registerTextHandler(
         const waranty = text.trim() || null;
         const saved = await repairsService.updateWaranty(model, issue, waranty);
         if (saved) {
-          ctx.reply(`Гарантия для «${issue}» обновлена: ${waranty || "—"}.`);
+          await ctx.reply("Данные обновлены.");
+          const payload = buildIssueResponse(model, issue, isAdminMode(ctx));
+          if (payload) {
+            await replaceRepairMessage(ctx, payload.text, {
+              reply_markup: payload.keyboard,
+            });
+          }
         } else {
           ctx.reply("Не удалось сохранить изменения. Проверь логи.");
         }
@@ -81,9 +105,13 @@ export function registerTextHandler(
           workTime,
         );
         if (saved) {
-          ctx.reply(
-            `Время выполнения для «${issue}» обновлено: ${workTime || "—"}.`,
-          );
+          await ctx.reply("Данные обновлены.");
+          const payload = buildIssueResponse(model, issue, isAdminMode(ctx));
+          if (payload) {
+            await replaceRepairMessage(ctx, payload.text, {
+              reply_markup: payload.keyboard,
+            });
+          }
         } else {
           ctx.reply("Не удалось сохранить изменения. Проверь логи.");
         }

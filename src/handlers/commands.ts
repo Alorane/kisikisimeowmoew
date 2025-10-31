@@ -2,7 +2,7 @@ import { Bot } from "grammy";
 import type { BotContext } from "../types/bot";
 import { repairsService } from "../services/repairs";
 import { settingsService } from "../services/settings";
-import { sendMessage } from "../utils/bot";
+import { sendMessage, sendRepairMessage } from "../utils/bot";
 import { deviceTypesKeyboard, issuesKeyboard } from "../utils/keyboards";
 import { buildIssueResponse } from "../utils/responses";
 
@@ -84,7 +84,7 @@ export function registerCommands(
     if (model && issue) {
       const payload = buildIssueResponse(model, issue, true);
       if (payload) {
-        await sendMessage(ctx, payload.text, {
+        await sendRepairMessage(ctx, payload.text, {
           reply_markup: payload.keyboard,
         });
         return;

@@ -81,6 +81,36 @@ export async function sendMessage(
   return ctx.reply(text, extra);
 }
 
+// Функция для отправки сообщений с данными repair (сохраняет ID для обновлений)
+export async function sendRepairMessage(
+  ctx: BotContext,
+  text: string,
+  extra?: Parameters<typeof ctx.reply>[1],
+) {
+  const message = await ctx.reply(text, extra);
+  ctx.session.repairMessageId = message.message_id;
+  return message;
+}
+
+// Функция для замены сообщения с данными repair (удаляет старое и отправляет новое)
+export async function replaceRepairMessage(
+  ctx: BotContext,
+  text: string,
+  extra?: Parameters<typeof ctx.reply>[1],
+) {
+  const messageId = ctx.session.repairMessageId;
+  if (messageId) {
+    try {
+      await ctx.api.deleteMessage(ctx.chat!.id, messageId);
+    } catch {
+      // Игнорируем ошибку удаления
+    }
+  }
+
+  // Отправляем новое сообщение
+  await sendRepairMessage(ctx, text, extra);
+}
+
 // Функции для работы с админами
 export function createAdminUtils(ADMIN_IDS: string[]) {
   const adminModeSet = new Set<string>();

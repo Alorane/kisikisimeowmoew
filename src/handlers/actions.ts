@@ -1,7 +1,7 @@
 import { Bot } from "grammy";
 import type { BotContext } from "../types/bot";
 import { repairsService } from "../services/repairs";
-import { sendMessage } from "../utils/bot";
+import { sendMessage, sendRepairMessage } from "../utils/bot";
 import {
   deviceTypesKeyboard,
   modelsKeyboard,
@@ -151,8 +151,11 @@ export function registerActions(bot: Bot<BotContext>, adminUtils: AdminUtils) {
       await ctx.editMessageText(payload.text, {
         reply_markup: payload.keyboard,
       });
+      ctx.session.repairMessageId = ctx.callbackQuery?.message?.message_id;
     } catch {
-      await ctx.reply(payload.text, { reply_markup: payload.keyboard });
+      await sendRepairMessage(ctx, payload.text, {
+        reply_markup: payload.keyboard,
+      });
     }
     return ctx.answerCallbackQuery();
   });

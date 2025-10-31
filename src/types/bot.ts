@@ -10,6 +10,7 @@ export interface SessionData {
   phone?: string;
   deviceType?: string;
   lastMessageId?: number;
+  repairMessageId?: number;
   adminEdit?: {
     mode: "add_issue" | "price" | "desc" | "waranty" | "work_time" | "delete_issue";
     model: string;
